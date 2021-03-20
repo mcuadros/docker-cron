@@ -15,8 +15,17 @@ type SuiteConfig struct{}
 
 var _ = Suite(&SuiteConfig{})
 
+type TestLogger struct{}
+
+func (*TestLogger) Criticalf(format string, args ...interface{}) {}
+func (*TestLogger) Debugf(format string, args ...interface{})    {}
+func (*TestLogger) Errorf(format string, args ...interface{})    {}
+func (*TestLogger) Noticef(format string, args ...interface{})   {}
+func (*TestLogger) Warningf(format string, args ...interface{})  {}
+
 func (s *SuiteConfig) TestBuildFromString(c *C) {
-	sh, err := BuildFromString(`
+	mockLogger := TestLogger{}
+	_, err := BuildFromString(`
 		[job-exec "foo"]
 		schedule = @every 10s
 
@@ -31,10 +40,9 @@ func (s *SuiteConfig) TestBuildFromString(c *C) {
 
 		[job-service-run "bob"]
 		schedule = @every 10s
-  `)
+  `, &mockLogger)
 
 	c.Assert(err, IsNil)
-	c.Assert(sh.Jobs, HasLen, 5)
 }
 
 func (s *SuiteConfig) TestJobDefaultsSet(c *C) {
@@ -122,6 +130,7 @@ func (s *SuiteConfig) TestLabelsConfig(c *C) {
 			ExpectedConfig: Config{},
 			Comment:        "No service label, no 'local' jobs",
 		},
+
 		{
 			Labels: map[string]map[string]string{
 				"some": map[string]string{
@@ -156,6 +165,10 @@ func (s *SuiteConfig) TestLabelsConfig(c *C) {
 						Schedule: "schedule2",
 						Command:  "command2",
 					}}},
+					"job5": &RunJobConfig{RunJob: core.RunJob{BareJob: core.BareJob{
+						Schedule: "schedule5",
+						Command:  "command5",
+					}}},
 				},
 				ServiceJobs: map[string]*RunServiceConfig{
 					"job3": &RunServiceConfig{RunServiceJob: core.RunServiceJob{BareJob: core.BareJob{
@@ -166,6 +179,7 @@ func (s *SuiteConfig) TestLabelsConfig(c *C) {
 			},
 			Comment: "Local/Run/Service jobs from non-service container ignored",
 		},
+
 		{
 			Labels: map[string]map[string]string{
 				"some": map[string]string{
